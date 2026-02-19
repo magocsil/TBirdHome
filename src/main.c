@@ -7,6 +7,7 @@
 #include "include/temperatureLM35.h"
 #include "include/i2c.h"
 #include "include/rtc.h"
+#include "include/dht11.h"
 
 
 #ifndef F_CPU
@@ -43,6 +44,8 @@ int main(void)
 	keyboardInit();
 	i2cInit();
 	rtcInit();
+	dht11Init();
+	dht11Read();
 
 	unsigned char sensor = 2;
 	unsigned char mode = 0;
