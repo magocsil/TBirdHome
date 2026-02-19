@@ -1,5 +1,5 @@
-#ifndef TBIRD_TEMPERATURE_LM35
-#define TBIRD_TEMPERATURE_LM35
+#ifndef TBIRD_LM35
+#define TBIRD_LM35
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

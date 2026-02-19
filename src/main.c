@@ -4,7 +4,7 @@
 #include "include/keyboard.h"
 #include "include/button.h"
 #include "include/lcd.h"
-#include "include/temperatureLM35.h"
+#include "include/lm35.h"
 #include "include/i2c.h"
 #include "include/rtc.h"
 #include "include/dht11.h"
