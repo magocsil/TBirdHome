@@ -6,7 +6,8 @@
 
 unsigned char TIM0_MATCH_COUNT = 0;
 unsigned short int COUNTDOWN_4_MILLISECONDS = 0;
-unsigned short TEMPERATURE_LM35;
+unsigned char TEMPERATURE_LM35;
+unsigned char DHT11_START = 0;
 
 void timer0Init(void)
 {
@@ -47,10 +48,11 @@ ISR(TIMER0_COMP_vect)
         {
                 COUNTDOWN_4_MILLISECONDS--;
         }
-
+	
         if(TIM0_MATCH_COUNT++ >= 250)
         {
                 adcStartConversion();
+		DHT11_START = 1;
                 TIM0_MATCH_COUNT = 0;
         }
 }
@@ -58,13 +60,13 @@ ISR(TIMER0_COMP_vect)
 ISR(ADC_vect)
 {
         TEMPERATURE_LM35 = adcRead() * 4 / 10;
-        char temperatureString[6] = "    C";
+/*        char temperatureString[6] = "    C";
         temperatureString[0] = TEMPERATURE_LM35 / 10;
         temperatureString[1] = TEMPERATURE_LM35 - temperatureString[0] * 10 + '0';
         temperatureString[0] += '0';
         temperatureString[3] = 0b11011111;
         lcdPos(2, 0);
         lcdPuts(temperatureString);
-}
+*/}
 
 #endif

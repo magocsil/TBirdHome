@@ -1,13 +1,13 @@
 #ifndef TBIRD_RTC
 #define TBIRD_RTC
 
-void rtcInit(void)
+void rtcInit(unsigned char hours, unsigned char minutes, unsigned char seconds)
 {
 	i2cStart((0x51 << 1), TW_WRITE);
         i2cWrite(0x2);
-        i2cWrite(0x20);
-        i2cWrite(0x24);
-        i2cWrite(0x02);
+        i2cWrite(seconds);
+        i2cWrite(minutes);
+        i2cWrite(hours);
         i2cStop();
 }
 

@@ -8,48 +8,38 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-unsigned short int COUNTDOWN_4_MILLISECONDS_2 = 0;
-
 void dht11Init(void)
 {
 	DDRB |= 0x40;
-	PORTB |= 0x40;
+	PORTB |= 0x60;
 }
 
-unsigned long int dht11Read(void)
+unsigned short int dht11Read(void)
 {
-	unsigned long int data = 0;
-	unsigned char checksum = 0;
-	unsigned char sumToCheck = 0;
+	unsigned short int data = 0;
 	PORTB &= 0xBF;
 	_delay_ms(20);
 	PORTB |= 0x40;
-	DDRD &= 0xBF;
+	DDRB &= 0xBF;
 	while(!(PINB & 0x40));
 	_delay_us(100);
-	if(!(PINB & 0x40)) return 0;
 	while(PINB & 0x40);
 	
-	for(int i = 40; i > 0; i--)
+	for(int i = 23; i >= 0; i--)
 	{
 		while(!(PINB & 0x40));
-		COUNTDOWN_4_MILLISECONDS_2 = 13;
-		while((PINB & 0x40) && (i > 8))
+		_delay_us(35);
+		while(PINB & 0x40)
 		{
-			data |= (1 << i);
-			unsigned char currentBitIndex = i % 8;
-			if(currentBitIndex - 1 <= 1)
-			{
-				sumToCheck |= (1 << (i / 4 - 3 + currentBitIndex));
-			}
+			if(i >= 16) data |= (1 << (i - 8));
+			else if(i < 7) data |= (1 << i);
 		}
-		while((PINB & 0x40) && (i <= 8)) checksum |= (1 << i);
 	}
+	_delay_ms(2);
 	while(!(PINB & 0x40));
 	dht11Init();
 	
-	if(sumToCheck == checksum) return data;
-	return checksum | (sumToCheck << 8);
+	return data;
 }
 
 #endif
