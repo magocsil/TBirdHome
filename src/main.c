@@ -32,6 +32,45 @@ void uartPutc(unsigned char c)
 	UDR0 = c;
 }
 
+char timeInput(unsigned short int keyboard, unsigned short int keyboardPrev, unsigned char* digit, char* timeRegister)
+{
+	unsigned char keyPressesCounter = *digit;
+	unsigned char calcNumber;
+	for(calcNumber = 0; keyboard >> calcNumber; calcNumber++);
+	if((calcNumber == 11) || (calcNumber == 10))
+	{
+		calcNumber = 0;
+	}
+	else if(calcNumber == 12)
+	{
+		lcdCmd(0x0C);
+		rtcInit(timeRegister[0] * 16 + timeRegister[1], timeRegister[2] * 16 + timeRegister[3], timeRegister[4] * 16 + timeRegister[5]);
+		COUNTDOWN_4_MILLISECONDS = 750;
+		*digit = 0;
+		return 1;
+	}
+	
+	if(((keyPressesCounter == 1) && (calcNumber > 3) && (timeRegister[0] == 2)) || (!keyPressesCounter && (calcNumber > 2)) || (!(keyPressesCounter & 1) && (calcNumber > 5)))
+	{
+		*digit = keyPressesCounter;
+		return -1;
+	}
+	timeRegister[keyPressesCounter++] = calcNumber;
+	lcdPutc(calcNumber + '0');
+	if((keyPressesCounter == 2) || (keyPressesCounter == 4))
+	{
+		lcdPutc(':');
+	}
+	else if(keyPressesCounter == 6)
+	{
+		keyPressesCounter = 0;
+		lcdPos(2, 8);
+	}
+	
+	*digit = keyPressesCounter;
+	return -1;
+}
+
 int main(void)
 {
 	ledInit(EXT_PB6);
@@ -59,13 +98,14 @@ int main(void)
 	unsigned char temperatureDHT11 = 0;
 	
 	lcdPos(2, 8);
-//	lcdPutc(0b11110100);
 	lcdPuts("06:30:00");
-	unsigned char keyPressesCounter = 0;
 
 	unsigned char buttonsPrev = 0;
-	unsigned char keyboardPrev = 0;
-	char requestedNumbers[6];
+	unsigned short int keyboardPrev = 0;
+	char requestedTime[6] = {0, 6, 3, 0, 0, 0};
+	char requestedAlarm[6] = {0, 6, 3, 0, 0, 0};
+	char isAlarmEnabled = 0;
+	unsigned char keyPressesCounter = 0;
 
 	while(1)
 	{
@@ -77,7 +117,7 @@ int main(void)
 			DHT11_START = 0;
 		}
 		unsigned char buttons = buttonRead();
-		unsigned char keyboard = 0;
+		unsigned short int keyboard = 0;
 
 		if((buttons == 0x10) && (mode >= 0))
 		{
@@ -91,37 +131,34 @@ int main(void)
 		}
 		else if((buttons == 0x04) && !buttonsPrev && (mode == 0))
 		{
-			lcdPos(2, 6);
-			lcdPutc(0b10100100);
-			lcdPutc(' ');
+			lcdPos(2, 8);
+			lcdCmd(0x0D);
+			keyPressesCounter = 0;
 			mode = -1;
-			
-			if(keyboardRead() && !keyboardPrev)
+		}
+		else if((buttons == 0x04) && !buttonsPrev && (mode == -1))
+		{
+			lcdCmd(0x0C);
+			keyPressesCounter = 0;
+			mode = 0;
+		}
+		else if((mode == -1) && keyboardRead() && !keyboardPrev)
+		{
+			keyboard = keyboardRead();
+			mode = timeInput(keyboard, keyboardPrev, &keyPressesCounter, requestedTime);
+			if(mode == 1)
 			{
-				keyboard = keyboardRead();
-				unsigned char calcLetter;
-				for(calcLetter = 0; keyboard >> calcLetter; calcLetter++);
-				if((calcLetter == 11) || (calcLetter == 10))
+				lcdPos(2, 7);
+				char alarmMarker = isAlarmEnabled ? 0b11110100 : ' ';
+				lcdPutc(alarmMarker);
+				for(int i = 0; (i < 6) && (mode == 1); i++)
 				{
-					calcLetter = 0;
+					lcdPutc(requestedAlarm[i] + '0');
+					if((i == 1) || (i == 3))
+					{
+						lcdPutc(':');
+					}
 				}
-				else if(calcLetter == 12)
-				{
-					i2cStop();
-					rtcInit(requestedNumbers[0] * 16 + requestedNumbers[1], requestedNumbers[2] * 16 + requestedNumbers[3], requestedNumbers[4] * 16 + requestedNumbers[5]);
-					mode = 1;
-					COUNTDOWN_4_MILLISECONDS = 750;
-				}
-
-				if(((keyPressesCounter == 1) && (calcLetter > 3) && (requestedNumbers[0] < 2)) || (!keyPressesCounter && calcLetter > 2) || (!(keyPressesCounter & 1) && (calcLetter > 5)))
-				{
-					continue;
-				}
-				lcdPos(2, 8 + keyPressesCounter);
-				if((keyPressesCounter == 2) || (keyPressesCounter == 5)) lcdPutc(':');
-				requestedNumbers[keyPressesCounter++] = calcLetter;
-				lcdPutc(calcLetter);
-				if(keyPressesCounter == 6) keyPressesCounter = 0;
 			}
 		}
 		else if((buttons == 0x02) && !buttonsPrev)
@@ -137,9 +174,44 @@ int main(void)
 				lcdPuts(" LM35");
 			}
 		}
-		else if(!buttons && mode == -1)
+		else if((buttons == 0x01) && !buttonsPrev && (mode == 0))
 		{
-		
+			lcdPos(2, 8);
+			lcdCmd(0x0D);
+			keyPressesCounter = 0;
+			mode = -2;
+		}
+		else if((buttons == 0x01) && !buttonsPrev && (mode == -2))
+		{
+			lcdCmd(0x0C);
+			keyPressesCounter = 0;
+			mode = 0;
+			isAlarmEnabled = 0;
+			lcdPos(2, 7);
+			lcdPutc(' ');
+		}
+		else if((mode == -2) && keyboardRead() && !keyboardPrev)
+		{
+			keyboard = keyboardRead();
+			mode = timeInput(keyboard, keyboardPrev, &keyPressesCounter, requestedAlarm);
+			if(mode == 1)
+			{
+				mode = 0;
+				lcdPos(2, 7);
+				lcdPutc(0b11110100);
+				for(int i = 0; (i < 6) && (mode == 1); i++)
+				{
+					lcdPutc(requestedAlarm[i] + '0');
+					if((i == 1) || (i == 3))
+					{
+						lcdPutc(':');
+					}
+				}
+			}
+			else if(mode == -1)
+			{
+				mode = -2;
+			}
 		}
 		else if(!buttons && !COUNTDOWN_4_MILLISECONDS)
 		{
